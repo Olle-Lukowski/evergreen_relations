@@ -160,16 +160,16 @@ mod tests {
     pub struct Symmetric1t1;
 
     impl Relation for Symmetric1t1 {
-        type Source = SymmetricNode;
-        type Target = SymmetricNode;
+        type Source = Symmetric;
+        type Target = Symmetric;
     }
 
     #[derive(Clone, PartialEq, Eq, Debug)]
-    pub struct SymmetricNode;
+    pub struct Symmetric;
 
-    pub type S1T1 = Related<SymmetricNode>;
+    pub type Related1T1 = Related<Symmetric>;
 
-    impl Relatable for SymmetricNode {
+    impl Relatable for Symmetric {
         type Relation = Symmetric1t1;
         type Opposite = Self;
         type Container = Entity;
@@ -180,17 +180,17 @@ mod tests {
         let mut world = World::new();
 
         let a = world.spawn_empty().id();
-        let b = world.spawn(S1T1::new(a)).id();
+        let b = world.spawn(Related1T1::new(a)).id();
 
         world.flush();
 
-        assert_eq!(world.get::<S1T1>(a), Some(&S1T1::new(b)));
-        assert_eq!(world.get::<S1T1>(b), Some(&S1T1::new(a)));
+        assert_eq!(world.get::<Related1T1>(a), Some(&Related1T1::new(b)));
+        assert_eq!(world.get::<Related1T1>(b), Some(&Related1T1::new(a)));
 
-        world.entity_mut(b).remove::<S1T1>();
+        world.entity_mut(b).remove::<Related1T1>();
         world.flush();
 
-        assert_eq!(world.get::<S1T1>(a), None);
-        assert_eq!(world.get::<S1T1>(b), None);
+        assert_eq!(world.get::<Related1T1>(a), None);
+        assert_eq!(world.get::<Related1T1>(b), None);
     }
 }
