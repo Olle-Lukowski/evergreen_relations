@@ -35,8 +35,8 @@ impl<N: Relatable> Related<N> {
         }
     }
 
-    pub fn as_slice(&self) -> &[Entity] {
-        self.container.as_slice()
+    pub fn for_each(&self, f: impl FnMut(Entity)) {
+        self.container.for_each(f);
     }
 
     pub fn contains(&self, entity: Entity) -> bool {
@@ -84,9 +84,9 @@ fn associate<N: Relatable>(mut world: DeferredWorld, a_id: Entity, _: ComponentI
         };
 
         // For each related entity, associate it with this entity.
-        for &b_id in b_ids.as_slice() {
+        b_ids.for_each(|b_id| {
             let Ok(mut b) = world.get_entity_mut(b_id) else {
-                continue;
+                return;
             };
 
             let b_related = unsafe { b.get_mut_assume_mutable::<Related<N::Opposite>>() };
@@ -107,7 +107,7 @@ fn associate<N: Relatable>(mut world: DeferredWorld, a_id: Entity, _: ComponentI
                     events.send(RelationEvent::Added(a_id, b_id, PhantomData));
                 }
             }
-        }
+        });
     });
 }
 
@@ -119,9 +119,9 @@ fn disassociate<N: Relatable>(mut world: DeferredWorld, a_id: Entity, _: Compone
 
     world.commands().queue(move |world: &mut World| {
         // For each related entity, disassociate it from this entity.
-        for &b_id in b_ids.as_slice() {
+        b_ids.for_each(|b_id| {
             let Ok(mut b) = world.get_entity_mut(b_id) else {
-                continue;
+                return;
             };
 
             let b_related = unsafe { b.get_mut_assume_mutable::<Related<N::Opposite>>() };
@@ -144,7 +144,7 @@ fn disassociate<N: Relatable>(mut world: DeferredWorld, a_id: Entity, _: Compone
                     events.send(RelationEvent::Removed(a_id, b_id, PhantomData));
                 }
             }
-        }
+        });
     });
 }
 
@@ -165,7 +165,7 @@ mod tests {
     }
 
     #[derive(Clone, PartialEq, Eq, Debug)]
-    pub struct SymmetricNode(Entity);
+    pub struct SymmetricNode;
 
     pub type S1T1 = Related<SymmetricNode>;
 

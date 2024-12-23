@@ -1,29 +1,32 @@
 use std::fmt::Debug;
 
-use bevy_ecs::entity::Entity;
+use bevy_ecs::entity::{Entity, EntityHashSet};
 use smallvec::{smallvec, SmallVec};
 
-/// A container for entities that this entity (where this container is stored) is related to.
+/// A container for the other entities that this entity is related to.
+///
+/// These containers store the relationship data, and is held inside the
+/// [`Related`] component.
+///
+/// [`Related`]: crate::related::Related
 pub trait EntityContainer: Clone + PartialEq + Eq + Debug + Send + Sync + 'static {
-    /// Creates a new entity container with the given entity.
+    /// Creates a new entity container with the initial given entity.
     fn new(entity: Entity) -> Self;
 
     /// Returns `true` if this entity is not related to any other entities.
     fn is_empty(&self) -> bool;
 
-    /// Returns the slice of entities that this entity is related to.
-    fn as_slice(&self) -> &[Entity];
-
     /// Returns `true` if the given entity is related to this entity.
-    fn contains(&self, entity: Entity) -> bool {
-        self.as_slice().contains(&entity)
-    }
+    fn contains(&self, entity: Entity) -> bool;
 
     /// Adds the given entity to the list of entities that this entity is related to.
     fn push(&mut self, entity: Entity);
 
     /// Removes the given entity from the list of entities that this entity is related to.
     fn remove(&mut self, entity: Entity);
+
+    /// Calls the given function with each entity that this entity is related to.
+    fn for_each(&self, f: impl FnMut(Entity));
 }
 
 impl EntityContainer for Entity {
@@ -33,10 +36,6 @@ impl EntityContainer for Entity {
 
     fn is_empty(&self) -> bool {
         *self == Entity::PLACEHOLDER
-    }
-
-    fn as_slice(&self) -> &[Entity] {
-        core::array::from_ref(self)
     }
 
     fn contains(&self, entity: Entity) -> bool {
@@ -52,6 +51,10 @@ impl EntityContainer for Entity {
             *self = Entity::PLACEHOLDER;
         }
     }
+
+    fn for_each(&self, mut f: impl FnMut(Entity)) {
+        f(*self);
+    }
 }
 
 impl<const N: usize> EntityContainer for SmallVec<[Entity; N]> {
@@ -63,8 +66,8 @@ impl<const N: usize> EntityContainer for SmallVec<[Entity; N]> {
         self.is_empty()
     }
 
-    fn as_slice(&self) -> &[Entity] {
-        self
+    fn contains(&self, entity: Entity) -> bool {
+        self.as_slice().contains(&entity)
     }
 
     fn push(&mut self, entity: Entity) {
@@ -73,6 +76,10 @@ impl<const N: usize> EntityContainer for SmallVec<[Entity; N]> {
 
     fn remove(&mut self, entity: Entity) {
         self.retain(|&mut id| id != entity);
+    }
+
+    fn for_each(&self, f: impl FnMut(Entity)) {
+        self.iter().copied().for_each(f);
     }
 }
 
@@ -85,8 +92,8 @@ impl EntityContainer for Vec<Entity> {
         self.is_empty()
     }
 
-    fn as_slice(&self) -> &[Entity] {
-        self
+    fn contains(&self, entity: Entity) -> bool {
+        self.as_slice().contains(&entity)
     }
 
     fn push(&mut self, entity: Entity) {
@@ -95,5 +102,37 @@ impl EntityContainer for Vec<Entity> {
 
     fn remove(&mut self, entity: Entity) {
         self.retain(|&id| id != entity);
+    }
+
+    fn for_each(&self, f: impl FnMut(Entity)) {
+        self.iter().copied().for_each(f);
+    }
+}
+
+impl EntityContainer for EntityHashSet {
+    fn new(entity: Entity) -> Self {
+        let mut set = EntityHashSet::default();
+        set.insert(entity);
+        set
+    }
+
+    fn is_empty(&self) -> bool {
+        self.is_empty()
+    }
+
+    fn contains(&self, entity: Entity) -> bool {
+        self.contains(&entity)
+    }
+
+    fn push(&mut self, entity: Entity) {
+        self.insert(entity);
+    }
+
+    fn remove(&mut self, entity: Entity) {
+        self.remove(&entity);
+    }
+
+    fn for_each(&self, f: impl FnMut(Entity)) {
+        self.iter().copied().for_each(f);
     }
 }
