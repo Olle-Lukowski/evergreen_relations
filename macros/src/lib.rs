@@ -80,14 +80,11 @@ pub fn derive_relatable(input: TokenStream) -> TokenStream {
             .into();
     };
 
-    let RelatableAttributes {
-        relation,
-        opposite,
-        symmetry,
-    } = match relatable.parse_args::<RelatableAttributes>() {
-        Ok(attrs) => attrs,
-        Err(err) => return err.to_compile_error().into(),
-    };
+    let RelatableAttributes { relation, opposite } =
+        match relatable.parse_args::<RelatableAttributes>() {
+            Ok(attrs) => attrs,
+            Err(err) => return err.to_compile_error().into(),
+        };
 
     let syn::Data::Struct(data_struct) = &input.data else {
         return syn::Error::new_spanned(ty, "expected struct")
@@ -112,7 +109,6 @@ pub fn derive_relatable(input: TokenStream) -> TokenStream {
         impl ::evergreen_relations::relation::Relatable for #ty {
             type Relation = #relation;
             type Opposite = #opposite;
-            type Symmetry = #symmetry;
             type Container = #container;
         }
     }
@@ -122,7 +118,6 @@ pub fn derive_relatable(input: TokenStream) -> TokenStream {
 struct RelatableAttributes {
     relation: syn::Type,
     opposite: syn::Type,
-    symmetry: proc_macro2::TokenStream,
 }
 
 impl Parse for RelatableAttributes {
@@ -146,17 +141,7 @@ impl Parse for RelatableAttributes {
         let opposite =
             opposite.ok_or_else(|| syn::Error::new(span, "missing `opposite` attribute"))?;
 
-        let symmetry = if is_self_type(&opposite) {
-            quote! { ::evergreen_relations::relation::Symmetric }
-        } else {
-            quote! { ::evergreen_relations::relation::Asymmetric }
-        };
-
-        Ok(Self {
-            relation,
-            opposite,
-            symmetry,
-        })
+        Ok(Self { relation, opposite })
     }
 }
 
@@ -172,16 +157,4 @@ impl Parse for TypeField {
         let ty = input.parse()?;
         Ok(Self { name, ty })
     }
-}
-
-fn is_self_type(ty: &syn::Type) -> bool {
-    let syn::Type::Path(path) = ty else {
-        return false;
-    };
-    if path.path.segments.len() != 1 {
-        return false;
-    }
-    let segment = &path.path.segments[0];
-
-    segment.ident == "Self" && matches!(segment.arguments, syn::PathArguments::None)
 }

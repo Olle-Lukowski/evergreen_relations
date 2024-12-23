@@ -154,7 +154,7 @@ mod tests {
 
     use crate::{
         related::Related,
-        relation::{Relatable, Relation, Symmetric},
+        relation::{Relatable, Relation},
     };
 
     pub struct Symmetric1t1;
@@ -172,7 +172,6 @@ mod tests {
     impl Relatable for SymmetricNode {
         type Relation = Symmetric1t1;
         type Opposite = Self;
-        type Symmetry = Symmetric;
         type Container = Entity;
     }
 
