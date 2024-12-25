@@ -3,6 +3,10 @@ use crate::container::EntityContainer;
 pub use evergreen_relations_macros::{Relatable, Relation};
 
 /// Trait for types that represent a relationship between entities.
+///
+/// Entity pointer data is stored in the [`Related`] component.
+///
+/// [`Related`]: crate::related::Related
 pub trait Relation {
     /// The "source" node of the relation.
     type Source: Relatable<Relation = Self, Opposite = Self::Target>;
@@ -12,6 +16,10 @@ pub trait Relation {
 }
 
 /// Trait for types that represent a node in a relationship.
+///
+/// Entity pointer data is stored in the [`Related`] component.
+///
+/// [`Related`]: crate::related::Related
 pub trait Relatable: 'static {
     /// The relation type that this node is part of.
     type Relation: Relation;

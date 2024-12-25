@@ -10,14 +10,14 @@ pub struct Family;
 pub type Parent = Related<ChildOf>;
 
 #[derive(Relatable, Clone, PartialEq, Eq, Debug)]
-#[relatable(Family, opposite = ParentOf)]
-pub struct ChildOf(Entity);
+#[relatable(Entity in Family, opposite = ParentOf)]
+pub struct ChildOf;
 
 pub type Children = Related<ParentOf>;
 
 #[derive(Relatable, Clone, PartialEq, Eq, Debug)]
-#[relatable(Family, opposite = ChildOf)]
-pub struct ParentOf(SmallVec<[Entity; 8]>);
+#[relatable(SmallVec<[Entity; 8]> in Family, opposite = ChildOf)]
+pub struct ParentOf;
 
 #[test]
 fn add_remove() {

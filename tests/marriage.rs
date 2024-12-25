@@ -16,8 +16,8 @@ pub struct Marriage;
 pub type SignificantOther = Related<SignificantOtherOf>;
 
 #[derive(Relatable, Clone, PartialEq, Eq, Debug)]
-#[relatable(Marriage, opposite = SignificantOtherOf)]
-pub struct SignificantOtherOf(Entity);
+#[relatable(Entity in Marriage, opposite = SignificantOtherOf)]
+pub struct SignificantOtherOf;
 
 #[test]
 fn add_remove() {

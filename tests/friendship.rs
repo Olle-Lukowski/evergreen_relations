@@ -13,8 +13,8 @@ pub struct Friendship;
 pub type Friend = Related<FriendOf>;
 
 #[derive(Relatable, Clone, PartialEq, Eq, Debug)]
-#[relatable(Friendship, opposite = Self)]
-pub struct FriendOf(SmallVec<[Entity; 8]>);
+#[relatable(SmallVec<[Entity; 8]> in Friendship, opposite = Self)]
+pub struct FriendOf;
 
 #[test]
 fn add_remove() {

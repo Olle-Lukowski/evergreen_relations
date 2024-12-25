@@ -80,29 +80,14 @@ pub fn derive_relatable(input: TokenStream) -> TokenStream {
             .into();
     };
 
-    let RelatableAttributes { relation, opposite } =
-        match relatable.parse_args::<RelatableAttributes>() {
-            Ok(attrs) => attrs,
-            Err(err) => return err.to_compile_error().into(),
-        };
-
-    let syn::Data::Struct(data_struct) = &input.data else {
-        return syn::Error::new_spanned(ty, "expected struct")
-            .to_compile_error()
-            .into();
+    let RelatableAttributes {
+        container,
+        relation,
+        opposite,
+    } = match relatable.parse_args::<RelatableAttributes>() {
+        Ok(attrs) => attrs,
+        Err(err) => return err.to_compile_error().into(),
     };
-
-    let mut fields = data_struct.fields.iter();
-    let Some(container) = fields.next().map(|field| &field.ty) else {
-        return syn::Error::new_spanned(ty, "expected exactly one field")
-            .to_compile_error()
-            .into();
-    };
-    if fields.next().is_some() {
-        return syn::Error::new_spanned(ty, "expected exactly one field")
-            .to_compile_error()
-            .into();
-    }
 
     quote! {
         #[automatically_derived]
@@ -116,6 +101,7 @@ pub fn derive_relatable(input: TokenStream) -> TokenStream {
 }
 
 struct RelatableAttributes {
+    container: syn::Type,
     relation: syn::Type,
     opposite: syn::Type,
 }
@@ -123,6 +109,8 @@ struct RelatableAttributes {
 impl Parse for RelatableAttributes {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let span = input.span();
+        let container = input.parse()?;
+        input.parse::<syn::Token![in]>()?;
         let relation = input.parse()?;
         input.parse::<syn::Token![,]>()?;
 
@@ -141,7 +129,11 @@ impl Parse for RelatableAttributes {
         let opposite =
             opposite.ok_or_else(|| syn::Error::new(span, "missing `opposite` attribute"))?;
 
-        Ok(Self { relation, opposite })
+        Ok(Self {
+            container,
+            relation,
+            opposite,
+        })
     }
 }
 
