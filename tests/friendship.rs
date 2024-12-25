@@ -12,7 +12,7 @@ pub struct Friendship;
 
 pub type Friend = Related<FriendOf>;
 
-#[derive(Relatable, Clone, PartialEq, Eq, Debug)]
+#[derive(Relatable)]
 #[relatable(SmallVec<[Entity; 8]> in Friendship, opposite = Self)]
 pub struct FriendOf;
 

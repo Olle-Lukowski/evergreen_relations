@@ -9,13 +9,13 @@ pub struct Family;
 
 pub type Parent = Related<ChildOf>;
 
-#[derive(Relatable, Clone, PartialEq, Eq, Debug)]
+#[derive(Relatable)]
 #[relatable(Entity in Family, opposite = ParentOf)]
 pub struct ChildOf;
 
 pub type Children = Related<ParentOf>;
 
-#[derive(Relatable, Clone, PartialEq, Eq, Debug)]
+#[derive(Relatable)]
 #[relatable(SmallVec<[Entity; 8]> in Family, opposite = ChildOf)]
 pub struct ParentOf;
 
