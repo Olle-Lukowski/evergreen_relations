@@ -25,8 +25,12 @@ pub trait EntityContainer: Clone + PartialEq + Eq + Debug + Send + Sync + 'stati
     /// Removes the given entity from the list of entities that this entity is related to.
     fn remove(&mut self, entity: Entity);
 
-    /// Calls the given function with each entity that this entity is related to.
-    fn for_each(&self, f: impl FnMut(Entity));
+    /// Consumes the entity container and returns an iterator over the entities
+    /// that this entity is related to.
+    fn into_iter(self) -> impl Iterator<Item = Entity>;
+
+    /// Returns an iterator over the entities that this entity is related to.
+    fn iter(&self) -> impl Iterator<Item = Entity>;
 }
 
 impl EntityContainer for Entity {
@@ -52,8 +56,12 @@ impl EntityContainer for Entity {
         }
     }
 
-    fn for_each(&self, mut f: impl FnMut(Entity)) {
-        f(*self);
+    fn into_iter(self) -> impl Iterator<Item = Entity> {
+        std::iter::once(self)
+    }
+
+    fn iter(&self) -> impl Iterator<Item = Entity> {
+        std::iter::once(*self)
     }
 }
 
@@ -78,8 +86,12 @@ impl<const N: usize> EntityContainer for SmallVec<[Entity; N]> {
         self.retain(|&mut id| id != entity);
     }
 
-    fn for_each(&self, f: impl FnMut(Entity)) {
-        self.iter().copied().for_each(f);
+    fn into_iter(self) -> impl Iterator<Item = Entity> {
+        IntoIterator::into_iter(self)
+    }
+
+    fn iter(&self) -> impl Iterator<Item = Entity> {
+        self.as_slice().iter().copied()
     }
 }
 
@@ -104,8 +116,12 @@ impl EntityContainer for Vec<Entity> {
         self.retain(|&id| id != entity);
     }
 
-    fn for_each(&self, f: impl FnMut(Entity)) {
-        self.iter().copied().for_each(f);
+    fn into_iter(self) -> impl Iterator<Item = Entity> {
+        IntoIterator::into_iter(self)
+    }
+
+    fn iter(&self) -> impl Iterator<Item = Entity> {
+        self.as_slice().iter().copied()
     }
 }
 
@@ -132,7 +148,11 @@ impl EntityContainer for EntityHashSet {
         self.remove(&entity);
     }
 
-    fn for_each(&self, f: impl FnMut(Entity)) {
-        self.iter().copied().for_each(f);
+    fn into_iter(self) -> impl Iterator<Item = Entity> {
+        IntoIterator::into_iter(self)
+    }
+
+    fn iter(&self) -> impl Iterator<Item = Entity> {
+        self.iter().copied()
     }
 }

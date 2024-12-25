@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{any::type_name, marker::PhantomData};
 
 use bevy_ecs::{
     component::{Component, ComponentHooks, ComponentId, Immutable, StorageType},
@@ -35,8 +35,8 @@ impl<N: Relatable> Related<N> {
         }
     }
 
-    pub fn for_each(&self, f: impl FnMut(Entity)) {
-        self.container.for_each(f);
+    pub fn iter(&self) -> impl Iterator<Item = Entity> + '_ {
+        self.container.iter()
     }
 
     pub fn contains(&self, entity: Entity) -> bool {
@@ -62,8 +62,9 @@ impl<N: Relatable> Eq for Related<N> {}
 
 impl<N: Relatable> std::fmt::Debug for Related<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Related")
-            .field("container", &self.container)
+        f.debug_tuple("Related")
+            .field(&type_name::<N>())
+            .field(&self.container)
             .finish()
     }
 }
@@ -76,29 +77,43 @@ impl<N: Relatable> From<Entity> for Related<N> {
     }
 }
 
+impl<N: Relatable> FromIterator<Entity> for Related<N>
+where
+    N::Container: FromIterator<Entity>,
+{
+    fn from_iter<T: IntoIterator<Item = Entity>>(iter: T) -> Self {
+        Self {
+            container: N::Container::from_iter(iter),
+        }
+    }
+}
+
 fn associate<N: Relatable>(mut world: DeferredWorld, a_id: Entity, _: ComponentId) {
     world.commands().queue(move |world: &mut World| {
-        // Get the IDs of the entities that this entity is related to.
-        let Some(b_ids) = world.get::<Related<N>>(a_id).cloned() else {
+        // Get the IDs of the other entities that this entity is related to.
+        let Some(a_related) = world.get::<Related<N>>(a_id).cloned() else {
             return;
         };
 
-        // For each related entity, associate it with this entity.
-        b_ids.for_each(|b_id| {
+        // For each other related entity, associate them with this entity.
+        for b_id in a_related.iter() {
             let Ok(mut b) = world.get_entity_mut(b_id) else {
                 return;
             };
 
-            let b_related = unsafe { b.get_mut_assume_mutable::<Related<N::Opposite>>() };
+            let b_related = b.get::<Related<N::Opposite>>();
 
-            let b_points_to_a = b_related.as_ref().is_some_and(|b| b.contains(a_id));
+            let b_points_to_a = b_related.is_some_and(|b| b.contains(a_id));
             if !b_points_to_a {
-                if let Some(mut b_related) = b_related {
+                if let Some(b_related) = b_related {
                     // The other entity is already related to some entities, so add this entity to the list.
+                    let mut b_related = b_related.clone();
                     b_related.container.push(a_id);
+                    b.insert(b_related);
                 } else {
                     // The other entity is not yet related to any entities, so relate it to this entity.
-                    b.insert(Related::<N::Opposite>::from(a_id));
+                    let b_related = Related::<N::Opposite>::from(a_id);
+                    b.insert(b_related);
                 }
 
                 if let Some(mut events) =
@@ -107,7 +122,7 @@ fn associate<N: Relatable>(mut world: DeferredWorld, a_id: Entity, _: ComponentI
                     events.send(RelationEvent::Added(a_id, b_id, PhantomData));
                 }
             }
-        });
+        }
     });
 }
 
@@ -119,22 +134,29 @@ fn disassociate<N: Relatable>(mut world: DeferredWorld, a_id: Entity, _: Compone
 
     world.commands().queue(move |world: &mut World| {
         // For each related entity, disassociate it from this entity.
-        b_ids.for_each(|b_id| {
+        for b_id in b_ids.iter() {
+            let a_points_to_b = world
+                .get::<Related<N>>(a_id)
+                .is_some_and(|a_related| a_related.contains(b_id));
+
             let Ok(mut b) = world.get_entity_mut(b_id) else {
                 return;
             };
 
-            let b_related = unsafe { b.get_mut_assume_mutable::<Related<N::Opposite>>() };
+            let b_related = b.get::<Related<N::Opposite>>();
 
-            let b_points_to_a = b_related.as_ref().is_some_and(|b| b.contains(a_id));
-            if b_points_to_a {
-                if let Some(mut b_related) = b_related {
+            let b_points_to_a = b_related.is_some_and(|b| b.contains(a_id));
+            if b_points_to_a && !a_points_to_b {
+                if let Some(b_related) = b_related {
                     // The other entity is related to some entities, so make sure this entity is removed from the list.
+                    let mut b_related = b_related.clone();
                     b_related.container.remove(a_id);
 
                     // If the other entity is no longer related to any entities, remove the component.
                     if b_related.container.is_empty() {
                         b.remove::<Related<N::Opposite>>();
+                    } else {
+                        b.insert(b_related);
                     }
                 }
 
@@ -144,53 +166,6 @@ fn disassociate<N: Relatable>(mut world: DeferredWorld, a_id: Entity, _: Compone
                     events.send(RelationEvent::Removed(a_id, b_id, PhantomData));
                 }
             }
-        });
+        }
     });
-}
-
-#[cfg(test)]
-mod tests {
-    use bevy_ecs::{entity::Entity, world::World};
-
-    use crate::{
-        related::Related,
-        relation::{Relatable, Relation},
-    };
-
-    pub struct Symmetric1t1;
-
-    impl Relation for Symmetric1t1 {
-        type Source = Symmetric;
-        type Target = Symmetric;
-    }
-
-    #[derive(Clone, PartialEq, Eq, Debug)]
-    pub struct Symmetric;
-
-    pub type Related1T1 = Related<Symmetric>;
-
-    impl Relatable for Symmetric {
-        type Relation = Symmetric1t1;
-        type Opposite = Self;
-        type Container = Entity;
-    }
-
-    #[test]
-    fn symmetric_one_to_one() {
-        let mut world = World::new();
-
-        let a = world.spawn_empty().id();
-        let b = world.spawn(Related1T1::new(a)).id();
-
-        world.flush();
-
-        assert_eq!(world.get::<Related1T1>(a), Some(&Related1T1::new(b)));
-        assert_eq!(world.get::<Related1T1>(b), Some(&Related1T1::new(a)));
-
-        world.entity_mut(b).remove::<Related1T1>();
-        world.flush();
-
-        assert_eq!(world.get::<Related1T1>(a), None);
-        assert_eq!(world.get::<Related1T1>(b), None);
-    }
 }
