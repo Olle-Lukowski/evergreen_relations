@@ -19,6 +19,8 @@ pub type Children = Related<ParentOf>;
 #[relatable(SmallVec<[Entity; 8]> in Family, opposite = ChildOf)]
 pub struct ParentOf;
 
+pub type Lineage = EitherRelated<Family>;
+
 #[test]
 fn add_remove() {
     let mut world = World::new();
@@ -60,4 +62,33 @@ fn add_remove() {
     assert_eq!(world.get::<Children>(a), None);
     assert_eq!(world.get::<Parent>(b), None);
     assert_eq!(world.get::<Parent>(c), None);
+}
+
+#[test]
+fn both_related() {
+    let mut world = World::new();
+
+    let a = world.spawn_empty().id();
+    let b = world.spawn(Parent::new(a)).id();
+    let c = world.spawn(Parent::new(b)).id();
+
+    world.flush();
+
+    let a_related = world.get_entity(a).unwrap().components::<Lineage>();
+    assert_eq!(a_related.source, None);
+    assert_eq!(
+        a_related.target,
+        Some(&Children::new(SmallVec::from_iter([b])))
+    );
+
+    let b_related = world.get_entity(b).unwrap().components::<Lineage>();
+    assert_eq!(b_related.source, Some(&Parent::new(a)));
+    assert_eq!(
+        b_related.target,
+        Some(&Children::new(SmallVec::from_iter([c])))
+    );
+
+    let c_related = world.get_entity(c).unwrap().components::<Lineage>();
+    assert_eq!(c_related.source, Some(&Parent::new(b)));
+    assert_eq!(c_related.target, None);
 }

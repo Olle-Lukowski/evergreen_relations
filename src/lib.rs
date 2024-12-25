@@ -1,5 +1,6 @@
 pub mod container;
 pub mod event;
+pub mod query;
 pub mod related;
 pub mod relation;
 
@@ -9,6 +10,7 @@ pub mod prelude {
     pub use crate::{
         container::EntityContainer,
         event::RelationEvent,
+        query::{BothRelated, EitherRelated, SelectRelated, SelectRelatedItem},
         related::Related,
         relation::{Relatable, Relation},
     };
