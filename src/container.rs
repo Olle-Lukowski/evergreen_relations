@@ -1,4 +1,7 @@
-use std::fmt::Debug;
+use std::{
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+};
 
 use bevy_ecs::entity::{Entity, EntityHashSet};
 use smallvec::{smallvec, SmallVec};
@@ -133,11 +136,11 @@ impl EntityContainer for EntityHashSet {
     }
 
     fn is_empty(&self) -> bool {
-        self.is_empty()
+        self.deref().is_empty()
     }
 
     fn contains(&self, entity: Entity) -> bool {
-        self.contains(&entity)
+        self.deref().contains(&entity)
     }
 
     fn push(&mut self, entity: Entity) {
@@ -145,7 +148,7 @@ impl EntityContainer for EntityHashSet {
     }
 
     fn remove(&mut self, entity: Entity) {
-        self.remove(&entity);
+        self.deref_mut().remove(&entity);
     }
 
     fn into_iter(self) -> impl Iterator<Item = Entity> {
