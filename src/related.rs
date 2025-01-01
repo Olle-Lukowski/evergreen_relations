@@ -1,7 +1,7 @@
 use std::{any::type_name, marker::PhantomData};
 
 use bevy_ecs::{
-    component::{Component, ComponentHooks, ComponentId, Immutable, StorageType},
+    component::{Component, ComponentHooks, ComponentId, StorageType},
     entity::Entity,
     event::Events,
     world::{DeferredWorld, World},
@@ -19,7 +19,6 @@ pub struct Related<N: Relatable> {
 
 impl<N: Relatable> Component for Related<N> {
     const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Immutable;
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
         hooks.on_insert(associate::<N>);
